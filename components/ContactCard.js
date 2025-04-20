@@ -31,6 +31,7 @@ export default function ContactCard({ person }) {
         { street: person.address, label: 'home' },
       ],
     };
+    console.log(phoneNumbers)
   
     try {
       await Contacts.addContactAsync(contact);
