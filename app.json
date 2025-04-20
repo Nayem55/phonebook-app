@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "phonebook-app",
+    "name": "LinkBook",
     "slug": "phonebook-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,13 +9,21 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSContactsUsageDescription": "This app requires access to your contacts."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "READ_CONTACTS",
+        "WRITE_CONTACTS"
+      ],
+      "package": "com.flormarbd.phonebookapp"
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +44,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "1101479d-e19b-4dab-865e-2fb99caafc6d"
+      }
     }
   }
 }
