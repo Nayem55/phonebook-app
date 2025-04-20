@@ -31,7 +31,6 @@ export default function ContactCard({ person }) {
         { street: person.address, label: 'home' },
       ],
     };
-    console.log(phoneNumbers)
   
     try {
       await Contacts.addContactAsync(contact);
@@ -74,7 +73,7 @@ export default function ContactCard({ person }) {
           <Text style={styles.buttonText}> Call</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
+        <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleCall}>
           <FontAwesome name="save" size={16} color="white" />
           <Text style={styles.buttonText}> Save</Text>
         </TouchableOpacity>
