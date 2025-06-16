@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   header: {
-    height: 180,
+    // height: 180,
     width: '100%',
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
