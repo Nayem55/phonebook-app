@@ -2,7 +2,6 @@ import { View, Text, StyleSheet, ScrollView, Dimensions, ActivityIndicator } fro
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-// import * as Location from 'expo-location';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
@@ -22,7 +21,6 @@ export default function PrayerTimesScreen() {
   useEffect(() => {
     const fetchPrayerTimes = async () => {
       try {
-        // For demo purposes, we'll use Dhaka coordinates
         const latitude = 23.8103;
         const longitude = 90.4125;
         
@@ -37,17 +35,23 @@ export default function PrayerTimesScreen() {
         
         const timings = response.data.data.timings;
         
-        // Calculate Ishraq (15-20 minutes after sunrise) and Chasht (quarter of the day between sunrise and Zawal)
+        // Calculate Ishraq and Chasht times
         const sunrise = new Date(`${date.toDateString()} ${timings.Sunrise}`);
-        const zuhr = new Date(`${date.toDateString()} ${timings.Dhuhr}`);
+        const dhuhr = new Date(`${date.toDateString()} ${timings.Dhuhr}`);
         
-        const ishraqTime = new Date(sunrise.getTime() + 20 * 60000); // 20 minutes after sunrise
-        const chashtEnd = new Date(sunrise.getTime() + (zuhr.getTime() - sunrise.getTime()) / 2);
+        // Ishraq begins 15-20 minutes after sunrise
+        const ishraqStart = new Date(sunrise.getTime() + 20 * 60000);
+        
+        // Chasht begins when Ishraq ends (about 45 minutes after sunrise)
+        const chashtStart = new Date(ishraqStart.getTime() + 25 * 60000);
+        
+        // Chasht ends when the sun reaches its zenith (Dhuhr time)
+        const chashtEnd = new Date(dhuhr.getTime());
         
         setPrayerTimes({
           ...timings,
-          Ishraq: dayjs(ishraqTime).format('HH:mm'),
-          Chasht: `${dayjs(sunrise).format('HH:mm')} - ${dayjs(chashtEnd).format('HH:mm')}`
+          Ishraq: `${dayjs(ishraqStart).format('HH:mm')} - ${dayjs(chashtStart).format('HH:mm')}`,
+          Chasht: `${dayjs(chashtStart).format('HH:mm')} - ${dayjs(chashtEnd).format('HH:mm')}`
         });
         
         setLoading(false);
@@ -79,15 +83,18 @@ export default function PrayerTimesScreen() {
     );
   }
 
-  const prayers = [
+  const mandatoryPrayers = [
     { name: 'Fajr', time: prayerTimes.Fajr, icon: 'sunny-outline' },
-    { name: 'Sunrise', time: prayerTimes.Sunrise, icon: 'sunny' },
-    { name: 'Ishraq', time: prayerTimes.Ishraq, icon: 'sunny-sharp' },
     { name: 'Dhuhr', time: prayerTimes.Dhuhr, icon: 'partly-sunny-outline' },
-    { name: 'Chasht', time: prayerTimes.Chasht, icon: 'time-outline' },
     { name: 'Asr', time: prayerTimes.Asr, icon: 'cloudy-outline' },
     { name: 'Maghrib', time: prayerTimes.Maghrib, icon: 'moon-outline' },
     { name: 'Isha', time: prayerTimes.Isha, icon: 'moon' },
+  ];
+
+  const optionalPrayers = [
+    { name: 'Sunrise', time: prayerTimes.Sunrise, icon: 'sunny' },
+    { name: 'Ishraq', time: prayerTimes.Ishraq, icon: 'sunny-sharp' },
+    { name: 'Chasht', time: prayerTimes.Chasht, icon: 'time-outline' },
   ];
 
   const currentPrayer = getCurrentPrayer(prayerTimes, currentTime);
@@ -116,48 +123,79 @@ export default function PrayerTimesScreen() {
         )}
       </LinearGradient>
 
-      <View style={styles.prayerTimesContainer}>
-        {prayers.map((prayer, index) => (
-          <View 
-            key={index} 
-            style={[
-              styles.prayerCard,
-              currentPrayer?.name === prayer.name && styles.currentPrayerCard
-            ]}
-          >
-            <View style={styles.prayerIcon}>
-              <Ionicons 
-                name={prayer.icon} 
-                size={28} 
-                color={currentPrayer?.name === prayer.name ? '#2563eb' : '#555'} 
-              />
-            </View>
-            <View style={styles.prayerInfo}>
-              <Text 
-                style={[
-                  styles.prayerName,
-                  currentPrayer?.name === prayer.name && styles.currentPrayerName
-                ]}
-              >
-                {prayer.name}
-              </Text>
-              <Text 
-                style={[
-                  styles.prayerTime,
-                  currentPrayer?.name === prayer.name && styles.currentPrayerTimeText
-                ]}
-              >
-                {prayer.time}
-              </Text>
-            </View>
-            {currentPrayer?.name === prayer.name && (
-              <View style={styles.liveIndicator}>
-                <View style={styles.liveDot} />
-                <Text style={styles.liveText}>LIVE</Text>
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionTitle}>Obligatory Prayers</Text>
+        <View style={styles.prayerTimesContainer}>
+          {mandatoryPrayers.map((prayer, index) => (
+            <View 
+              key={index} 
+              style={[
+                styles.prayerCard,
+                currentPrayer?.name === prayer.name && styles.currentPrayerCard
+              ]}
+            >
+              <View style={styles.prayerIcon}>
+                <Ionicons 
+                  name={prayer.icon} 
+                  size={28} 
+                  color={currentPrayer?.name === prayer.name ? '#2563eb' : '#555'} 
+                />
               </View>
-            )}
-          </View>
-        ))}
+              <View style={styles.prayerInfo}>
+                <Text 
+                  style={[
+                    styles.prayerName,
+                    currentPrayer?.name === prayer.name && styles.currentPrayerName
+                  ]}
+                >
+                  {prayer.name}
+                </Text>
+                <Text 
+                  style={[
+                    styles.prayerTime,
+                    currentPrayer?.name === prayer.name && styles.currentPrayerTimeText
+                  ]}
+                >
+                  {prayer.time}
+                </Text>
+              </View>
+              {currentPrayer?.name === prayer.name && (
+                <View style={styles.liveIndicator}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.sectionContainer}>
+        <Text style={styles.sectionTitle}>Recommended Prayers</Text>
+        <View style={styles.prayerTimesContainer}>
+          {optionalPrayers.map((prayer, index) => (
+            <View 
+              key={index} 
+              style={styles.prayerCard}
+            >
+              <View style={styles.prayerIcon}>
+                <Ionicons 
+                  name={prayer.icon} 
+                  size={28} 
+                  color="#555" 
+                />
+              </View>
+              <View style={styles.prayerInfo}>
+                <Text style={styles.prayerName}>
+                  {prayer.name}
+                </Text>
+                <Text style={styles.prayerTime}>
+                  {prayer.time}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
 
       <View style={styles.footer}>
@@ -173,7 +211,6 @@ function getCurrentPrayer(prayerTimes, currentTime) {
 
   const prayers = [
     { name: 'Fajr', time: prayerTimes.Fajr },
-    { name: 'Sunrise', time: prayerTimes.Sunrise },
     { name: 'Dhuhr', time: prayerTimes.Dhuhr },
     { name: 'Asr', time: prayerTimes.Asr },
     { name: 'Maghrib', time: prayerTimes.Maghrib },
@@ -194,7 +231,7 @@ function getCurrentPrayer(prayerTimes, currentTime) {
 
     if (currentTotal < prayerTotal) {
       if (i === 0) {
-        currentPrayer = prayers[prayers.length - 1]; // Isha from previous day
+        currentPrayer = prayers[prayers.length - 1];
       } else {
         currentPrayer = prayers[i - 1];
       }
@@ -203,7 +240,7 @@ function getCurrentPrayer(prayerTimes, currentTime) {
   }
 
   if (!currentPrayer) {
-    currentPrayer = prayers[prayers.length - 1]; // Isha
+    currentPrayer = prayers[prayers.length - 1];
   }
 
   return currentPrayer;
@@ -258,8 +295,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 5,
   },
+  sectionContainer: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 15,
+    marginLeft: 5,
+  },
   prayerTimesContainer: {
-    padding: 20,
+    marginBottom: 10,
   },
   prayerCard: {
     backgroundColor: 'white',
@@ -368,5 +416,18 @@ const styles = StyleSheet.create({
     color: '#777',
     marginTop: 10,
     textAlign: 'center',
+  },
+    sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 15,
+    marginLeft: 5,
+    textAlign: 'center',
+  },
+  prayerTime: {
+    fontSize: 16,
+    color: '#333',
+    marginTop: 3,
   },
 });
