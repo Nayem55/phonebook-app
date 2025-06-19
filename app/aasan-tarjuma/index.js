@@ -1,22 +1,10 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Dimensions,
-  Platform,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useState, useRef } from "react";
-import * as FileSystem from "expo-file-system";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Link } from 'expo-router';
+import { useState } from 'react';
+import * as DocumentPicker from 'expo-document-picker';
 
-// Only import PDF component for native platforms
-let Pdf;
-if (Platform.OS !== "web") {
-  Pdf = require("react-native-pdf").default;
-}
-
+// Data from the Excel file
 const paraData = [
   { name: "introduction/مقدّمہ", page: 3 },
   { name: "الم (1)", page: 27 },
@@ -48,7 +36,7 @@ const paraData = [
   { name: "قَالَ فَمَا خَطْبُكُمْ (27)", page: 1598 },
   { name: "قَدْ سَمِعَ اللهُ (28)", page: 1678 },
   { name: "تَبْرَكَ الَّذِي (29)", page: 1762 },
-  { name: "عَمَّ (30)", page: 1856 },
+  { name: "عَمَّ (30)", page: 1856 }
 ];
 
 const surahData = [
@@ -165,29 +153,33 @@ const surahData = [
   { name: "Al-Lahab (111) المسد", page: 1959 },
   { name: "Al-Ikhlas (112) الإخلاص", page: 1961 },
   { name: "Al-Falaq (113) الفلق", page: 1963 },
-  { name: "An-Nas (114) الناس", page: 1964 },
+  { name: "An-Nas (114) الناس", page: 1964 }
 ];
 
 export default function AasanTarjumaScreen() {
-  const [activeTab, setActiveTab] = useState("para");
+  const [activeTab, setActiveTab] = useState('para');
   const [lastRead, setLastRead] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const pdfRef = useRef(null);
+  const [pdfUri, setPdfUri] = useState(null);
 
-  const pdfSource = Platform.select({
-    native: {
-      uri: `${FileSystem.documentDirectory}assets/Aasan Tarjuma Quran.pdf`,
-      cache: true,
-    },
-    web: { uri: "/assets/aasan_tarjuma.pdf" },
-  });
+  const handlePdfSelect = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+      });
+      
+      if (result.type === 'success') {
+        setPdfUri(result.uri);
+      }
+    } catch (err) {
+      console.log('Error picking PDF:', err);
+    }
+  };
 
   const handlePageJump = (item) => {
     setLastRead(item);
-    setCurrentPage(item.page);
-    if (pdfRef.current && Platform.OS !== "web") {
-      pdfRef.current.setPage(item.page);
-    }
+    // Here you would implement the actual PDF page jump
+    // For now, we'll just log it
+    console.log(`Jumping to page ${item.page} for ${item.name}`);
   };
 
   return (
@@ -197,30 +189,11 @@ export default function AasanTarjumaScreen() {
         <Text style={styles.headerTitle}>Aasan Tarjuma Quran</Text>
       </View>
 
-      {/* PDF Viewer - Platform Specific */}
-      {Platform.OS !== "web" ? (
-        <View style={styles.pdfContainer}>
-          <Pdf
-            ref={pdfRef}
-            source={pdfSource}
-            style={styles.pdf}
-            page={currentPage}
-            onError={(error) => console.log("PDF error:", error)}
-            onPageChanged={(page) => setCurrentPage(page)}
-          />
-        </View>
-      ) : (
-        <View style={styles.webPdfContainer}>
-          <Text style={styles.webPdfText}>PDF viewer not supported on web</Text>
-          <Text style={styles.webPdfHint}>Open in mobile app to view PDF</Text>
-        </View>
-      )}
-
       {/* Last Read Section */}
       {lastRead && (
         <View style={styles.lastReadContainer}>
           <Text style={styles.sectionTitle}>Last Read</Text>
-          <TouchableOpacity
+          <TouchableOpacity 
             style={styles.lastReadCard}
             onPress={() => handlePageJump(lastRead)}
           >
@@ -233,42 +206,36 @@ export default function AasanTarjumaScreen() {
         </View>
       )}
 
+      {/* PDF Selector */}
+      <TouchableOpacity style={styles.pdfSelector} onPress={handlePdfSelect}>
+        <Ionicons name="document" size={20} color="#4F6AF5" />
+        <Text style={styles.pdfSelectorText}>
+          {pdfUri ? 'PDF Selected' : 'Select Aasan Tarjuma PDF'}
+        </Text>
+      </TouchableOpacity>
+
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "para" && styles.activeTab]}
-          onPress={() => setActiveTab("para")}
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'para' && styles.activeTab]}
+          onPress={() => setActiveTab('para')}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "para" && styles.activeTabText,
-            ]}
-          >
-            Para
-          </Text>
+          <Text style={[styles.tabText, activeTab === 'para' && styles.activeTabText]}>Para</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "surah" && styles.activeTab]}
-          onPress={() => setActiveTab("surah")}
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'surah' && styles.activeTab]}
+          onPress={() => setActiveTab('surah')}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "surah" && styles.activeTabText,
-            ]}
-          >
-            Surah
-          </Text>
+          <Text style={[styles.tabText, activeTab === 'surah' && styles.activeTabText]}>Surah</Text>
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       <ScrollView style={styles.contentContainer}>
-        {activeTab === "para" ? (
+        {activeTab === 'para' ? (
           <>
             {paraData.map((para, index) => (
-              <TouchableOpacity
+              <TouchableOpacity 
                 key={`para-${index}`}
                 style={styles.itemCard}
                 onPress={() => handlePageJump(para)}
@@ -284,7 +251,7 @@ export default function AasanTarjumaScreen() {
         ) : (
           <>
             {surahData.map((surah, index) => (
-              <TouchableOpacity
+              <TouchableOpacity 
                 key={`surah-${index}`}
                 style={styles.itemCard}
                 onPress={() => handlePageJump(surah)}
@@ -306,43 +273,35 @@ export default function AasanTarjumaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F7FB",
+    backgroundColor: '#F5F7FB',
   },
   header: {
     padding: 20,
     paddingBottom: 10,
-    backgroundColor: "#4F6AF5",
+    backgroundColor: '#4F6AF5',
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-  },
-  pdfContainer: {
-    flex: 1,
-    height: Dimensions.get("window").height * 0.4,
-  },
-  pdf: {
-    flex: 1,
-    width: Dimensions.get("window").width,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
   },
   lastReadContainer: {
     padding: 15,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#555",
+    fontWeight: '600',
+    color: '#555',
     marginBottom: 10,
   },
   lastReadCard: {
-    backgroundColor: "white",
+    backgroundColor: 'white',
     borderRadius: 10,
     padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -354,54 +313,72 @@ const styles = StyleSheet.create({
   },
   lastReadName: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: '600',
+    color: '#333',
   },
   lastReadPage: {
     fontSize: 14,
-    color: "#666",
+    color: '#666',
     marginTop: 3,
   },
+  pdfSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 15,
+    marginHorizontal: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  pdfSelectorText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 10,
+  },
   tabContainer: {
-    flexDirection: "row",
+    flexDirection: 'row',
     marginHorizontal: 15,
     marginBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    borderBottomColor: '#ddd',
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
-    alignItems: "center",
+    alignItems: 'center',
     borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: "#4F6AF5",
+    borderBottomColor: '#4F6AF5',
   },
   tabText: {
     fontSize: 16,
-    color: "#666",
-    fontWeight: "500",
+    color: '#666',
+    fontWeight: '500',
   },
   activeTabText: {
-    color: "#4F6AF5",
-    fontWeight: "600",
+    color: '#4F6AF5',
+    fontWeight: '600',
   },
   contentContainer: {
     flex: 1,
     paddingHorizontal: 15,
-    maxHeight: Dimensions.get("window").height * 0.3,
   },
   itemCard: {
-    backgroundColor: "white",
+    backgroundColor: 'white',
     borderRadius: 10,
     padding: 15,
     marginBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    shadowColor: "#000",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -409,33 +386,16 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 16,
-    color: "#333",
+    color: '#333',
     flex: 1,
   },
   pageJumpContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   pageNumber: {
     fontSize: 14,
-    color: "#666",
+    color: '#666',
     marginRight: 10,
-  },
-   webPdfContainer: {
-    height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    margin: 15,
-    borderRadius: 10,
-  },
-  webPdfText: {
-    fontSize: 16,
-    color: '#555',
-  },
-  webPdfHint: {
-    fontSize: 14,
-    color: '#888',
-    marginTop: 10,
   },
 });
