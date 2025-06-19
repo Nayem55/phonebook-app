@@ -1,6 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Modal, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 import { useState, useRef } from 'react';
 import dayjs from 'dayjs';
@@ -11,42 +10,42 @@ const menuItems = [
     title: 'Contacts',
     icon: 'people-outline',
     route: '/phonebook',
-    color: ['#4F6AF5', '#6A5DF9'],
+    color: '#4F6AF5',
   },
   {
     id: 2,
     title: 'Quran',
     icon: 'book-outline',
     route: '/quran',
-    color: ['#FF7D54', '#FF5E62'],
+    color: '#FF7D54',
   },
   {
     id: 3,
     title: 'Events',
     icon: 'calendar-outline',
     route: '/events',
-    color: ['#2BCA9A', '#30D7A6'],
+    color: '#2BCA9A',
   },
   {
     id: 4,
     title: 'Notes',
     icon: 'document-text-outline',
     route: '/notes',
-    color: ['#9B51E0', '#BB6BD9'],
+    color: '#9B51E0',
   },
   {
     id: 5,
     title: 'Prayer Times',
     icon: 'time-outline',
     route: '/prayertimes',
-    color: ['#56CCF2', '#2F80ED'],
+    color: '#56CCF2',
   },
   {
     id: 6,
     title: 'Settings',
     icon: 'settings-outline',
     route: '/settings',
-    color: ['#828282', '#A5A5A5'],
+    color: '#828282',
   },
 ];
 
@@ -121,12 +120,7 @@ export default function HomeScreen() {
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <LinearGradient
-            colors={['#2563eb', '#1d4ed8']}
-            style={styles.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
+          <View style={[styles.gradient, { backgroundColor: '#2563eb' }]}>
             <View style={styles.headerContent}>
               <Text style={styles.greeting}>Assalamu Alaikum</Text>
               <Text style={styles.userName}>Obaid Sohail</Text>
@@ -137,7 +131,7 @@ export default function HomeScreen() {
                 <Ionicons name="notifications-outline" size={24} color="white" />
               </TouchableOpacity>
             </View>
-          </LinearGradient>
+          </View>
         </View>
 
         <View style={styles.quickActions}>
@@ -146,14 +140,9 @@ export default function HomeScreen() {
             {menuItems.map((item) => (
               <Link key={item.id} href={item.route} asChild>
                 <TouchableOpacity style={styles.menuItem}>
-                  <LinearGradient
-                    colors={item.color}
-                    style={styles.menuIconContainer}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
+                  <View style={[styles.menuIconContainer, { backgroundColor: item.color }]}>
                     <Ionicons name={item.icon} size={28} color="white" />
-                  </LinearGradient>
+                  </View>
                   <Text style={styles.menuItemText}>{item.title}</Text>
                 </TouchableOpacity>
               </Link>
@@ -424,3 +413,6 @@ const styles = StyleSheet.create({
     color: '#999',
   },
 });
+
+//eas build --platform android
+//eas build --platform android --profile preview

@@ -1,16 +1,20 @@
-import { View, Text, StyleSheet, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import * as Network from 'expo-network';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function PrayerTimesScreen() {
   const [prayerTimes, setPrayerTimes] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isOnline, setIsOnline] = useState(false);
 
+
+  // Update current time every second
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -18,12 +22,20 @@ export default function PrayerTimesScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const fetchPrayerTimes = async () => {
-      try {
-        const latitude = 23.8103;
+  const fetchPrayerTimes = async () => {
+    try {
+      const networkState = await Network.getNetworkStateAsync();
+      setIsOnline(networkState.isConnected && networkState.isInternetReachable);
+
+      // Try to get cached prayer times first
+      const cachedPrayerTimes = await AsyncStorage.getItem('cachedPrayerTimes');
+      if (cachedPrayerTimes) {
+        setPrayerTimes(JSON.parse(cachedPrayerTimes));
+      }
+
+      if (networkState.isConnected && networkState.isInternetReachable) {
+        const latitude = 23.8103; // Dhaka coordinates
         const longitude = 90.4125;
-        
         const date = new Date();
         const year = date.getFullYear();
         const month = date.getMonth() + 1;
@@ -34,40 +46,37 @@ export default function PrayerTimesScreen() {
         );
         
         const timings = response.data.data.timings;
-        
-        // Calculate Ishraq and Chasht times
         const sunrise = new Date(`${date.toDateString()} ${timings.Sunrise}`);
         const dhuhr = new Date(`${date.toDateString()} ${timings.Dhuhr}`);
         
-        // Ishraq begins 15-20 minutes after sunrise
+        // Calculate Ishraq (15-20 mins after sunrise) and Chasht (until Dhuhr)
         const ishraqStart = new Date(sunrise.getTime() + 20 * 60000);
-        
-        // Chasht begins when Ishraq ends (about 45 minutes after sunrise)
         const chashtStart = new Date(ishraqStart.getTime() + 25 * 60000);
         
-        // Chasht ends when the sun reaches its zenith (Dhuhr time)
-        const chashtEnd = new Date(dhuhr.getTime());
-        
-        setPrayerTimes({
+        const prayerData = {
           ...timings,
           Ishraq: `${dayjs(ishraqStart).format('HH:mm')} - ${dayjs(chashtStart).format('HH:mm')}`,
-          Chasht: `${dayjs(chashtStart).format('HH:mm')} - ${dayjs(chashtEnd).format('HH:mm')}`
-        });
+          Chasht: `${dayjs(chashtStart).format('HH:mm')} - ${dayjs(dhuhr).format('HH:mm')}`
+        };
         
-        setLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setLoading(false);
+        setPrayerTimes(prayerData);
+        await AsyncStorage.setItem('cachedPrayerTimes', JSON.stringify(prayerData));
       }
-    };
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchPrayerTimes();
   }, []);
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F6AF5" />
+        <ActivityIndicator size="large" color="#2563eb" />
         <Text style={styles.loadingText}>Loading prayer times...</Text>
       </View>
     );
@@ -79,6 +88,9 @@ export default function PrayerTimesScreen() {
         <Ionicons name="warning" size={50} color="#FF5E62" />
         <Text style={styles.errorText}>Failed to load prayer times</Text>
         <Text style={styles.errorSubText}>{error}</Text>
+        <Text style={styles.offlineText}>
+          {prayerTimes ? 'Showing cached data' : 'No cached data available'}
+        </Text>
       </View>
     );
   }
@@ -101,18 +113,17 @@ export default function PrayerTimesScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <LinearGradient
-        colors={['#1d4ed8', '#2563eb']}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      {/* Header with solid color background */}
+      <View style={styles.header}>
         <Text style={styles.locationText}>Dhaka, Bangladesh</Text>
         <Text style={styles.dateText}>
           {dayjs().format('dddd, MMMM D, YYYY')}
         </Text>
         <Text style={styles.timeText}>
           {dayjs(currentTime).format('h:mm:ss A')}
+        </Text>
+        <Text style={styles.networkStatus}>
+          {isOnline ? 'Online' : 'Offline - Showing cached data'}
         </Text>
         
         {currentPrayer && (
@@ -121,8 +132,9 @@ export default function PrayerTimesScreen() {
             <Text style={styles.currentPrayerTime}>{currentPrayer.time}</Text>
           </View>
         )}
-      </LinearGradient>
+      </View>
 
+      {/* Obligatory Prayers Section */}
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Obligatory Prayers</Text>
         <View style={styles.prayerTimesContainer}>
@@ -170,28 +182,18 @@ export default function PrayerTimesScreen() {
         </View>
       </View>
 
+      {/* Recommended Prayers Section */}
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Recommended Prayers</Text>
         <View style={styles.prayerTimesContainer}>
           {optionalPrayers.map((prayer, index) => (
-            <View 
-              key={index} 
-              style={styles.prayerCard}
-            >
+            <View key={index} style={styles.prayerCard}>
               <View style={styles.prayerIcon}>
-                <Ionicons 
-                  name={prayer.icon} 
-                  size={28} 
-                  color="#555" 
-                />
+                <Ionicons name={prayer.icon} size={28} color="#555" />
               </View>
               <View style={styles.prayerInfo}>
-                <Text style={styles.prayerName}>
-                  {prayer.name}
-                </Text>
-                <Text style={styles.prayerTime}>
-                  {prayer.time}
-                </Text>
+                <Text style={styles.prayerName}>{prayer.name}</Text>
+                <Text style={styles.prayerTime}>{prayer.time}</Text>
               </View>
             </View>
           ))}
@@ -206,6 +208,7 @@ export default function PrayerTimesScreen() {
   );
 }
 
+// Helper function to determine current prayer
 function getCurrentPrayer(prayerTimes, currentTime) {
   if (!prayerTimes) return null;
 
@@ -231,7 +234,7 @@ function getCurrentPrayer(prayerTimes, currentTime) {
 
     if (currentTotal < prayerTotal) {
       if (i === 0) {
-        currentPrayer = prayers[prayers.length - 1];
+        currentPrayer = prayers[prayers.length - 1]; // Isha from previous day
       } else {
         currentPrayer = prayers[i - 1];
       }
@@ -240,7 +243,7 @@ function getCurrentPrayer(prayerTimes, currentTime) {
   }
 
   if (!currentPrayer) {
-    currentPrayer = prayers[prayers.length - 1];
+    currentPrayer = prayers[prayers.length - 1]; // Default to Isha
   }
 
   return currentPrayer;
@@ -257,6 +260,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     borderBottomLeftRadius: 25,
     borderBottomRightRadius: 25,
+    backgroundColor: '#2563eb',
   },
   locationText: {
     fontSize: 22,
@@ -276,7 +280,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
+  },
+  networkStatus: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    textAlign: 'center',
+    marginBottom: 15,
+    fontStyle: 'italic',
   },
   currentPrayerContainer: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -304,7 +315,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     marginBottom: 15,
-    marginLeft: 5,
+    textAlign: 'center',
   },
   prayerTimesContainer: {
     marginBottom: 10,
@@ -349,7 +360,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   prayerTime: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#333',
     marginTop: 3,
   },
@@ -392,6 +403,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F5F7FB',
   },
   loadingText: {
     marginTop: 15,
@@ -403,6 +415,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 30,
+    backgroundColor: '#F5F7FB',
   },
   errorText: {
     fontSize: 18,
@@ -417,17 +430,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
   },
-    sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
-    marginLeft: 5,
-    textAlign: 'center',
-  },
-  prayerTime: {
+  offlineText: {
     fontSize: 16,
-    color: '#333',
-    marginTop: 3,
+    color: '#2563eb',
+    marginTop: 20,
+    textAlign: 'center',
   },
 });
