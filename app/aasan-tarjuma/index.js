@@ -1,10 +1,19 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Link } from 'expo-router';
-import { useState } from 'react';
-import * as DocumentPicker from 'expo-document-picker';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+  Modal,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import Pdf from 'react-native-pdf';
+import { Asset } from "expo-asset";
 
-// Data from the Excel file
 const paraData = [
   { name: "introduction/مقدّمہ", page: 3 },
   { name: "الم (1)", page: 27 },
@@ -36,7 +45,7 @@ const paraData = [
   { name: "قَالَ فَمَا خَطْبُكُمْ (27)", page: 1598 },
   { name: "قَدْ سَمِعَ اللهُ (28)", page: 1678 },
   { name: "تَبْرَكَ الَّذِي (29)", page: 1762 },
-  { name: "عَمَّ (30)", page: 1856 }
+  { name: "عَمَّ (30)", page: 1856 },
 ];
 
 const surahData = [
@@ -153,33 +162,53 @@ const surahData = [
   { name: "Al-Lahab (111) المسد", page: 1959 },
   { name: "Al-Ikhlas (112) الإخلاص", page: 1961 },
   { name: "Al-Falaq (113) الفلق", page: 1963 },
-  { name: "An-Nas (114) الناس", page: 1964 }
+  { name: "An-Nas (114) الناس", page: 1964 },
 ];
 
-export default function AasanTarjumaScreen() {
-  const [activeTab, setActiveTab] = useState('para');
-  const [lastRead, setLastRead] = useState(null);
-  const [pdfUri, setPdfUri] = useState(null);
 
-  const handlePdfSelect = async () => {
+export default function AasanTarjumaScreen() {
+  const [activeTab, setActiveTab] = useState("para");
+  const [lastRead, setLastRead] = useState(null);
+  const [pdfVisible, setPdfVisible] = useState(false);
+  const [pdfSource, setPdfSource] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const openPdfAtPage = async (item) => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
-      });
+      setLastRead(item);
       
-      if (result.type === 'success') {
-        setPdfUri(result.uri);
+      // Get the PDF asset
+      const asset = Asset.fromModule(require("../../assets/Aasan Tarjuma Quran.pdf"));
+      
+      // Download if not already available
+      if (!asset.localUri) {
+        await asset.downloadAsync();
       }
-    } catch (err) {
-      console.log('Error picking PDF:', err);
+      
+      // For iOS/Android, we'll use react-native-pdf
+      setPdfSource({ uri: asset.localUri });
+      setCurrentPage(item.page);
+      setPdfVisible(true);
+      
+    } catch (error) {
+      console.error("Error opening PDF:", error);
+      alert("Error opening PDF. Please try again.");
     }
   };
 
-  const handlePageJump = (item) => {
-    setLastRead(item);
-    // Here you would implement the actual PDF page jump
-    // For now, we'll just log it
-    console.log(`Jumping to page ${item.page} for ${item.name}`);
+  const sharePdf = async () => {
+    try {
+      if (pdfSource?.uri) {
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(pdfSource.uri);
+        } else {
+          alert("Sharing is not available on this device");
+        }
+      }
+    } catch (error) {
+      console.error("Error sharing PDF:", error);
+    }
   };
 
   return (
@@ -193,9 +222,9 @@ export default function AasanTarjumaScreen() {
       {lastRead && (
         <View style={styles.lastReadContainer}>
           <Text style={styles.sectionTitle}>Last Read</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.lastReadCard}
-            onPress={() => handlePageJump(lastRead)}
+            onPress={() => openPdfAtPage(lastRead)}
           >
             <Ionicons name="bookmark" size={20} color="#4F6AF5" />
             <View style={styles.lastReadContent}>
@@ -206,39 +235,45 @@ export default function AasanTarjumaScreen() {
         </View>
       )}
 
-      {/* PDF Selector */}
-      <TouchableOpacity style={styles.pdfSelector} onPress={handlePdfSelect}>
-        <Ionicons name="document" size={20} color="#4F6AF5" />
-        <Text style={styles.pdfSelectorText}>
-          {pdfUri ? 'PDF Selected' : 'Select Aasan Tarjuma PDF'}
-        </Text>
-      </TouchableOpacity>
-
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'para' && styles.activeTab]}
-          onPress={() => setActiveTab('para')}
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "para" && styles.activeTab]}
+          onPress={() => setActiveTab("para")}
         >
-          <Text style={[styles.tabText, activeTab === 'para' && styles.activeTabText]}>Para</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "para" && styles.activeTabText,
+            ]}
+          >
+            Para
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'surah' && styles.activeTab]}
-          onPress={() => setActiveTab('surah')}
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "surah" && styles.activeTab]}
+          onPress={() => setActiveTab("surah")}
         >
-          <Text style={[styles.tabText, activeTab === 'surah' && styles.activeTabText]}>Surah</Text>
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "surah" && styles.activeTabText,
+            ]}
+          >
+            Surah
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Content */}
       <ScrollView style={styles.contentContainer}>
-        {activeTab === 'para' ? (
+        {activeTab === "para" ? (
           <>
             {paraData.map((para, index) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={`para-${index}`}
                 style={styles.itemCard}
-                onPress={() => handlePageJump(para)}
+                onPress={() => openPdfAtPage(para)}
               >
                 <Text style={styles.itemName}>{para.name}</Text>
                 <View style={styles.pageJumpContainer}>
@@ -251,10 +286,10 @@ export default function AasanTarjumaScreen() {
         ) : (
           <>
             {surahData.map((surah, index) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={`surah-${index}`}
                 style={styles.itemCard}
-                onPress={() => handlePageJump(surah)}
+                onPress={() => openPdfAtPage(surah)}
               >
                 <Text style={styles.itemName}>{surah.name}</Text>
                 <View style={styles.pageJumpContainer}>
@@ -266,136 +301,75 @@ export default function AasanTarjumaScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* PDF Viewer Modal */}
+      <Modal
+        visible={pdfVisible}
+        animationType="slide"
+        onRequestClose={() => setPdfVisible(false)}
+      >
+        <View style={styles.pdfContainer}>
+          <View style={styles.pdfHeader}>
+            <TouchableOpacity 
+              onPress={() => setPdfVisible(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={sharePdf}
+              style={styles.shareButton}
+            >
+              <Ionicons name="share-social" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+          
+          {pdfSource && (
+            <Pdf
+              source={pdfSource}
+              page={currentPage}
+              style={styles.pdf}
+              onError={(error) => {
+                console.log(error);
+                alert("Error loading PDF");
+                setPdfVisible(false);
+              }}
+              onPageChanged={(page, numberOfPages) => {
+                setCurrentPage(page);
+              }}
+              enablePaging={true}
+              enableRTL={true}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  // ... (keep all your existing styles)
+
+  // Add these new styles:
+  pdfContainer: {
     flex: 1,
-    backgroundColor: '#F5F7FB',
+    backgroundColor: '#333',
   },
-  header: {
-    padding: 20,
-    paddingBottom: 10,
-    backgroundColor: '#4F6AF5',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-  },
-  lastReadContainer: {
-    padding: 15,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: 10,
-  },
-  lastReadCard: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  lastReadContent: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  lastReadName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  lastReadPage: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 3,
-  },
-  pdfSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    padding: 15,
-    marginHorizontal: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  pdfSelectorText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 10,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: '#4F6AF5',
-  },
-  tabText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: '#4F6AF5',
-    fontWeight: '600',
-  },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 15,
-  },
-  itemCard: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
+  pdfHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    padding: 15,
+    backgroundColor: '#4F6AF5',
   },
-  itemName: {
-    fontSize: 16,
-    color: '#333',
+  closeButton: {
+    padding: 5,
+  },
+  shareButton: {
+    padding: 5,
+  },
+  pdf: {
     flex: 1,
-  },
-  pageJumpContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  pageNumber: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 10,
+    width: '100%',
   },
 });
