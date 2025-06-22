@@ -348,10 +348,134 @@ export default function AasanTarjumaScreen() {
 }
 
 const styles = StyleSheet.create({
-  // ... (keep all your existing styles)
-
-  // Add these new styles:
-  pdfContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F7FB",
+  },
+  header: {
+    padding: 20,
+    paddingBottom: 10,
+    backgroundColor: "#4F6AF5",
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "white",
+    textAlign: "center",
+  },
+  lastReadContainer: {
+    padding: 15,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 10,
+  },
+  lastReadCard: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  lastReadContent: {
+    marginLeft: 15,
+    flex: 1,
+  },
+  lastReadName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  lastReadPage: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 3,
+  },
+  pdfSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    padding: 15,
+    marginHorizontal: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  pdfSelectorText: {
+    fontSize: 16,
+    color: "#333",
+    marginLeft: 10,
+  },
+  tabContainer: {
+    flexDirection: "row",
+    marginHorizontal: 15,
+    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ddd",
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  activeTab: {
+    borderBottomColor: "#4F6AF5",
+  },
+  tabText: {
+    fontSize: 16,
+    color: "#666",
+    fontWeight: "500",
+  },
+  activeTabText: {
+    color: "#4F6AF5",
+    fontWeight: "600",
+  },
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 15,
+  },
+  itemCard: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  itemName: {
+    fontSize: 16,
+    color: "#333",
+    flex: 1,
+  },
+  pageJumpContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  pageNumber: {
+    fontSize: 14,
+    color: "#666",
+    marginRight: 10,
+  },
+    pdfContainer: {
     flex: 1,
     backgroundColor: '#333',
   },
