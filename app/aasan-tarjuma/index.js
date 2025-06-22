@@ -11,8 +11,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import Pdf from 'react-native-pdf';
+// import Pdf from 'react-native-pdf';
 import { Asset } from "expo-asset";
+import { Link } from "expo-router";
 
 const paraData = [
   { name: "introduction/مقدّمہ", page: 3 },
@@ -49,6 +50,7 @@ const paraData = [
 ];
 
 const surahData = [
+  { name: "introduction/مقدّمہ", page: 3 },
   { name: "Al-Fatihah (1) الفاتحة", page: 27 },
   { name: "Al-Baqarah (2) البقرة", page: 31 },
   { name: "Al-Imran (3) آل عمران", page: 171 },
@@ -165,7 +167,6 @@ const surahData = [
   { name: "An-Nas (114) الناس", page: 1964 },
 ];
 
-
 export default function AasanTarjumaScreen() {
   const [activeTab, setActiveTab] = useState("para");
   const [lastRead, setLastRead] = useState(null);
@@ -176,20 +177,15 @@ export default function AasanTarjumaScreen() {
   const openPdfAtPage = async (item) => {
     try {
       setLastRead(item);
-      
-      // Get the PDF asset
-      const asset = Asset.fromModule(require("../../assets/Aasan Tarjuma Quran.pdf"));
-      
-      // Download if not already available
+      const asset = Asset.fromModule(
+        require("../../assets/Aasan Tarjuma Quran.pdf")
+      );
       if (!asset.localUri) {
         await asset.downloadAsync();
       }
-      
-      // For iOS/Android, we'll use react-native-pdf
       setPdfSource({ uri: asset.localUri });
       setCurrentPage(item.page);
       setPdfVisible(true);
-      
     } catch (error) {
       console.error("Error opening PDF:", error);
       alert("Error opening PDF. Please try again.");
@@ -215,41 +211,36 @@ export default function AasanTarjumaScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <Link
+          href="/quran"
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </Link>
         <Text style={styles.headerTitle}>Aasan Tarjuma Quran</Text>
+        <View style={styles.headerRightPlaceholder} />
       </View>
-
       {/* Last Read Section */}
       {lastRead && (
         <View style={styles.lastReadContainer}>
-          <Text style={styles.sectionTitle}>Last Read</Text>
           <TouchableOpacity
             style={styles.lastReadCard}
             onPress={() => openPdfAtPage(lastRead)}
           >
-            <Ionicons name="bookmark" size={20} color="#4F6AF5" />
+            <View style={styles.lastReadIcon}>
+              <Ionicons name="bookmark" size={20} color="#4F6AF5" />
+            </View>
             <View style={styles.lastReadContent}>
               <Text style={styles.lastReadName}>{lastRead.name}</Text>
               <Text style={styles.lastReadPage}>Page {lastRead.page}</Text>
             </View>
+            <Ionicons name="chevron-forward" size={20} color="#A0A3BD" />
           </TouchableOpacity>
         </View>
       )}
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "para" && styles.activeTab]}
-          onPress={() => setActiveTab("para")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "para" && styles.activeTabText,
-            ]}
-          >
-            Para
-          </Text>
-        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === "surah" && styles.activeTab]}
           onPress={() => setActiveTab("surah")}
@@ -263,43 +254,51 @@ export default function AasanTarjumaScreen() {
             Surah
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "para" && styles.activeTab]}
+          onPress={() => setActiveTab("para")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "para" && styles.activeTabText,
+            ]}
+          >
+            Para
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.contentContainer}>
-        {activeTab === "para" ? (
-          <>
-            {paraData.map((para, index) => (
-              <TouchableOpacity
-                key={`para-${index}`}
-                style={styles.itemCard}
-                onPress={() => openPdfAtPage(para)}
+      <ScrollView
+        style={styles.contentContainer}
+        contentContainerStyle={styles.contentContainerStyle}
+      >
+        {(activeTab === "para" ? paraData : surahData).map((item, index) => (
+          <TouchableOpacity
+            key={`${activeTab}-${index}`}
+            style={styles.itemCard}
+            onPress={() => openPdfAtPage(item)}
+          >
+            <View style={styles.itemNumber}>
+              <Text style={styles.numberText}>{index + 1}</Text>
+            </View>
+            <View style={styles.itemContent}>
+              <Text
+                style={styles.itemName}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
-                <Text style={styles.itemName}>{para.name}</Text>
-                <View style={styles.pageJumpContainer}>
-                  <Text style={styles.pageNumber}>Page {para.page}</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#4F6AF5" />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </>
-        ) : (
-          <>
-            {surahData.map((surah, index) => (
-              <TouchableOpacity
-                key={`surah-${index}`}
-                style={styles.itemCard}
-                onPress={() => openPdfAtPage(surah)}
-              >
-                <Text style={styles.itemName}>{surah.name}</Text>
-                <View style={styles.pageJumpContainer}>
-                  <Text style={styles.pageNumber}>Page {surah.page}</Text>
-                  <Ionicons name="arrow-forward" size={18} color="#4F6AF5" />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
+                {item.name}
+              </Text>
+              <View style={styles.pageContainer}>
+                <Text style={styles.pageText}>Page</Text>
+                <Text style={styles.pageNumber}>{item.page}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#A0A3BD" />
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
       {/* PDF Viewer Modal */}
@@ -310,20 +309,21 @@ export default function AasanTarjumaScreen() {
       >
         <View style={styles.pdfContainer}>
           <View style={styles.pdfHeader}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setPdfVisible(false)}
               style={styles.closeButton}
             >
-              <Ionicons name="close" size={24} color="white" />
+              <Ionicons name="arrow-back" size={24} color="white" />
+              <Text style={styles.closeText}>Back</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={sharePdf}
-              style={styles.shareButton}
-            >
-              <Ionicons name="share-social" size={20} color="white" />
+            <View style={styles.pageIndicator}>
+              <Text style={styles.pageIndicatorText}>Page {currentPage}</Text>
+            </View>
+            <TouchableOpacity onPress={sharePdf} style={styles.shareButton}>
+              <Ionicons name="share-outline" size={20} color="white" />
             </TouchableOpacity>
           </View>
-          
+
           {pdfSource && (
             <Pdf
               source={pdfSource}
@@ -350,150 +350,199 @@ export default function AasanTarjumaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F7FB",
+    backgroundColor: "#F8FAFC",
   },
   header: {
-    padding: 20,
-    paddingBottom: 10,
-    backgroundColor: "#4F6AF5",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
+    backgroundColor: "#1A5D1A", // Deep green header
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  backButton: {
+    padding: 4,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "600",
     color: "white",
     textAlign: "center",
+    flex: 1,
+  },
+  headerRightPlaceholder: {
+    width: 32,
   },
   lastReadContainer: {
-    padding: 15,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   lastReadCard: {
     backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
+    borderRadius: 12,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
   },
+  lastReadIcon: {
+    backgroundColor: "#E8F5E9", // Light green background
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
   lastReadContent: {
-    marginLeft: 15,
     flex: 1,
   },
   lastReadName: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: "500",
+    color: "#2E3A59",
   },
   lastReadPage: {
     fontSize: 14,
-    color: "#666",
-    marginTop: 3,
-  },
-  pdfSelector: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "white",
-    padding: 15,
-    marginHorizontal: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  pdfSelectorText: {
-    fontSize: 16,
-    color: "#333",
-    marginLeft: 10,
+    color: "#8F9BB3",
+    marginTop: 4,
   },
   tabContainer: {
     flexDirection: "row",
-    marginHorizontal: 15,
-    marginBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ddd",
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 10,
+    overflow: "hidden",
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    backgroundColor: "#F8FAFC",
   },
   activeTab: {
-    borderBottomColor: "#4F6AF5",
+    backgroundColor: "#1A5D1A", // Deep green active tab
   },
   tabText: {
-    fontSize: 16,
-    color: "#666",
+    fontSize: 14,
     fontWeight: "500",
+    color: "#8F9BB3",
   },
   activeTabText: {
-    color: "#4F6AF5",
+    color: "white",
     fontWeight: "600",
   },
   contentContainer: {
     flex: 1,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
+  },
+  contentContainerStyle: {
+    paddingBottom: 20,
   },
   itemCard: {
     backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 3,
-    elevation: 2,
+    elevation: 1,
+  },
+  itemNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#E8F5E9", // Light green background
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  numberText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1A5D1A", // Deep green text
+  },
+  itemContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginRight: 12,
   },
   itemName: {
     fontSize: 16,
-    color: "#333",
-    flex: 1,
+    fontWeight: "500",
+    color: "#2E3A59",
+    maxWidth: "60%",
   },
-  pageJumpContainer: {
+  pageContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
+  pageText: {
+    fontSize: 14,
+    color: "#8F9BB3",
+    marginRight: 4,
+  },
   pageNumber: {
     fontSize: 14,
-    color: "#666",
-    marginRight: 10,
+    fontWeight: "600",
+    color: "#1A5D1A", // Deep green text
   },
-    pdfContainer: {
+  pdfContainer: {
     flex: 1,
-    backgroundColor: '#333',
+    backgroundColor: "#333",
   },
   pdfHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#4F6AF5',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    paddingTop: Platform.OS === "ios" ? 50 : 16,
+    backgroundColor: "#1A5D1A", // Deep green header
   },
   closeButton: {
-    padding: 5,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  closeText: {
+    color: "white",
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  pageIndicator: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  pageIndicatorText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "500",
   },
   shareButton: {
-    padding: 5,
+    padding: 8,
   },
   pdf: {
     flex: 1,
-    width: '100%',
+    width: "100%",
   },
 });

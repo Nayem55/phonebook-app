@@ -1,182 +1,263 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Link } from 'expo-router';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Dimensions,
+  Platform,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Link } from "expo-router";
 
 const resources = [
   {
     id: 1,
-    title: 'Munajaat e Maqbool',
-    icon: 'book-outline',
-    route: '/munajaat',
-    color: '#4F6AF5',
+    title: "Munajaat e Maqbool",
+    icon: "book-outline",
+    route: "/munajaat",
+    color: "#1A5D1A", // Deep green
   },
   {
     id: 2,
-    title: '99 Names of Allah',
-    icon: 'sparkles-outline',
-    route: '/names-of-allah',
-    color: '#FF7D54',
+    title: "99 Names of Allah",
+    icon: "sparkles-outline",
+    route: "/names-of-allah",
+    color: "#D4AF37", // Gold
   },
   {
     id: 3,
-    title: 'Aasan Tarjuma Quran',
-    icon: 'language-outline',
-    route: '/aasan-tarjuma',
-    color: '#2BCA9A',
+    title: "Aasan Tarjuma Quran",
+    icon: "language-outline",
+    route: "/aasan-tarjuma",
+    color: "#0A7E8C", // Teal
   },
   {
     id: 4,
-    title: 'Bahishti Zewar',
-    icon: 'ribbon-outline',
-    route: '/bahishti-zewar',
-    color: '#9B51E0',
+    title: "Bahishti Zewar",
+    icon: "ribbon-outline",
+    route: "/bahishti-zewar",
+    color: "#6A1B9A", // Purple
   },
   {
     id: 5,
-    title: 'Hafezi Quran',
-    icon: 'school-outline',
-    route: '/hifz-quran',
-    color: '#56CCF2',
+    title: "Hafezi Quran",
+    icon: "school-outline",
+    route: "/hifz-quran",
+    color: "#0288D1", // Blue
   },
   {
     id: 6,
-    title: 'Heavenly Ornaments',
-    icon: 'diamond-outline',
-    route: '/heavenly-ornaments',
-    color: '#FF5E62',
+    title: "Heavenly Ornaments",
+    icon: "diamond-outline",
+    route: "/heavenly-ornaments",
+    color: "#C2185B", // Pink
   },
   {
     id: 7,
-    title: 'The Noble Quran',
-    icon: 'bookmarks-outline',
-    route: '/noble-quran',
-    color: '#6A5DF9',
+    title: "The Noble Quran",
+    icon: "bookmarks-outline",
+    route: "/noble-quran",
+    color: "#1A5D1A", // Deep green
   },
 ];
 
 export default function QuranScreen() {
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Quran & Dua Resources</Text>
-        <Text style={styles.headerSubtitle}>Islamic learning materials</Text>
-      </View>
-
-      <View style={styles.resourcesGrid}>
-        {resources.map((resource) => (
-          <Link key={resource.id} href={resource.route} asChild>
-            <TouchableOpacity style={styles.resourceItem}>
-              <View style={[styles.resourceIconContainer, { backgroundColor: resource.color }]}>
-                <Ionicons name={resource.icon} size={28} color="white" />
-              </View>
-              <Text style={styles.resourceTitle}>{resource.title}</Text>
-            </TouchableOpacity>
+    <View style={styles.container}>
+      {/* Enhanced Header */}
+      <View style={styles.headerContainer}>
+        <View style={styles.header}>
+          <Link
+            href="/"
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
           </Link>
-        ))}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Daily Dua</Text>
-        <View style={styles.duaCard}>
-          <Text style={styles.duaArabic}>رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً وَقِنَا عَذَابَ النَّارِ</Text>
-          <Text style={styles.duaTranslation}>"Our Lord, give us in this world [that which is] good and in the Hereafter [that which is] good and protect us from the punishment of the Fire."</Text>
-          <Text style={styles.duaReference}>[Surah Al-Baqarah 2:201]</Text>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Quran & Dua Resources</Text>
+            <Text style={styles.headerSubtitle}>
+              Islamic learning materials
+            </Text>
+          </View>
+          <View style={styles.headerRightPlaceholder} />
         </View>
       </View>
-    </ScrollView>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Resources Grid */}
+        <View style={styles.gridContainer}>
+          {resources.map((resource) => (
+            <Link key={resource.id} href={resource.route} asChild>
+              <TouchableOpacity style={styles.resourceCard}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: resource.color },
+                  ]}
+                >
+                  <Ionicons name={resource.icon} size={24} color="white" />
+                </View>
+                <Text style={styles.cardTitle}>{resource.title}</Text>
+              </TouchableOpacity>
+            </Link>
+          ))}
+        </View>
+
+        {/* Dua Section */}
+        <View style={styles.duaSection}>
+          <Text style={styles.sectionTitle}>Daily Dua</Text>
+          <View style={styles.duaCard}>
+            <Text style={styles.arabicText}>
+              رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً
+              وَقِنَا عَذَابَ النَّارِ
+            </Text>
+            <View style={styles.divider} />
+            <Text style={styles.translation}>
+              "Our Lord, give us in this world [that which is] good and in the
+              Hereafter [that which is] good and protect us from the punishment
+              of the Fire."
+            </Text>
+            <Text style={styles.reference}>[Surah Al-Baqarah 2:201]</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-const { width } = Dimensions.get('window');
-const itemSize = width / 3 - 24;
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = width / 2 - 24;
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    backgroundColor: '#F5F7FB',
-    paddingBottom: 30,
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+  },
+  headerContainer: {
+    backgroundColor: "#1A5D1A",
+    paddingTop: Platform.OS === "ios" ? 50 : 20,
+    paddingBottom: 20,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+      },
+      default: {
+        elevation: 3,
+      },
+    }),
   },
   header: {
-    padding: 20,
-    paddingBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: "700",
+    color: "white",
+    marginBottom: 4,
+    textAlign: "center",
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 5,
-  },
-  resourcesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    padding: 15,
-  },
-  resourceItem: {
-    width: itemSize,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  resourceIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  resourceTitle: {
     fontSize: 14,
-    color: '#555',
-    textAlign: 'center',
-    fontWeight: '500',
+    color: "rgba(255,255,255,0.9)",
+    textAlign: "center",
   },
-  section: {
-    paddingHorizontal: 20,
-    marginTop: 10,
+  headerRightPlaceholder: {
+    width: 40, // Balances the back button space
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    padding: 16,
+  },
+  resourceCard: {
+    width: CARD_WIDTH,
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: "center",
+    ...Platform.select({
+      web: {
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+      },
+      default: {
+        elevation: 2,
+      },
+    }),
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+    textAlign: "center",
+  },
+  duaSection: {
+    paddingHorizontal: 16,
+    marginTop: 8,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 16,
   },
   duaCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+      },
+      default: {
+        elevation: 2,
+      },
+    }),
   },
-  duaArabic: {
+  arabicText: {
     fontSize: 20,
-    color: '#2E384D',
-    textAlign: 'right',
+    color: "#2E384D",
+    textAlign: "right",
     lineHeight: 32,
-    marginBottom: 15,
-    fontFamily: 'TraditionalArabic', // Make sure to load this font in your app
+    fontFamily: "TraditionalArabic",
   },
-  duaTranslation: {
+  divider: {
+    height: 1,
+    backgroundColor: "#eee",
+    marginVertical: 16,
+  },
+  translation: {
     fontSize: 16,
-    color: '#555',
-    marginBottom: 10,
+    color: "#555",
     lineHeight: 24,
+    marginBottom: 8,
   },
-  duaReference: {
+  reference: {
     fontSize: 14,
-    color: '#4F6AF5',
-    fontStyle: 'italic',
+    color: "#1A5D1A",
+    fontStyle: "italic",
+    textAlign: "right",
   },
 });
