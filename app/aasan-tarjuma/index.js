@@ -6,14 +6,16 @@ import {
   TouchableOpacity,
   Platform,
   Modal,
+  ActivityIndicator
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import Pdf from 'react-native-pdf';
 import { Asset } from "expo-asset";
 import { Link } from "expo-router";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const paraData = [
   { name: "introduction/مقدّمہ", page: 3 },
@@ -173,22 +175,80 @@ export default function AasanTarjumaScreen() {
   const [pdfVisible, setPdfVisible] = useState(false);
   const [pdfSource, setPdfSource] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const pdfRef = useRef(null);
+
+  // Load last read from storage on component mount
+  useEffect(() => {
+    const loadLastRead = async () => {
+      try {
+        const savedLastRead = await AsyncStorage.getItem('lastReadQuran');
+        if (savedLastRead) {
+          setLastRead(JSON.parse(savedLastRead));
+        }
+      } catch (error) {
+        console.error('Error loading last read:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadLastRead();
+  }, []);
+
+  // Save last read to storage whenever it changes
+  useEffect(() => {
+    const saveLastRead = async () => {
+      if (lastRead) {
+        try {
+          await AsyncStorage.setItem('lastReadQuran', JSON.stringify(lastRead));
+        } catch (error) {
+          console.error('Error saving last read:', error);
+        }
+      }
+    };
+    saveLastRead();
+  }, [lastRead]);
 
   const openPdfAtPage = async (item) => {
     try {
+      setLoading(true);
       setLastRead(item);
-      const asset = Asset.fromModule(
-        require("../../assets/Aasan Tarjuma Quran.pdf")
-      );
+      
+      const asset = Asset.fromModule(require("../../assets/Aasan Tarjuma Quran.pdf"));
       if (!asset.localUri) {
         await asset.downloadAsync();
       }
+      
       setPdfSource({ uri: asset.localUri });
       setCurrentPage(item.page);
       setPdfVisible(true);
     } catch (error) {
       console.error("Error opening PDF:", error);
       alert("Error opening PDF. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Update last read whenever page changes
+    if (lastRead) {
+      setLastRead(prev => ({
+        ...prev,
+        page: page
+      }));
+    }
+  };
+
+  const handlePdfClose = () => {
+    setPdfVisible(false);
+    // Ensure last read is updated with the final page before closing
+    if (lastRead && pdfRef.current) {
+      setLastRead(prev => ({
+        ...prev,
+        page: currentPage
+      }));
     }
   };
 
@@ -207,28 +267,44 @@ export default function AasanTarjumaScreen() {
     }
   };
 
+  const handleSwipe = (direction) => {
+    if (pdfRef.current) {
+      const newPage = direction === 'left' ? currentPage + 1 : currentPage - 1;
+      if (newPage >= 1 && newPage <= 1964) { // Assuming 1964 is the last page
+        pdfRef.current.setPage(newPage);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1A5D1A" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Link
-          href="/quran"
-          style={styles.backButton}
-        >
+        <Link href="/quran" style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </Link>
         <Text style={styles.headerTitle}>Aasan Tarjuma Quran</Text>
         <View style={styles.headerRightPlaceholder} />
       </View>
+
       {/* Last Read Section */}
       {lastRead && (
         <View style={styles.lastReadContainer}>
+          <Text style={styles.sectionTitle}>Continue Reading</Text>
           <TouchableOpacity
             style={styles.lastReadCard}
             onPress={() => openPdfAtPage(lastRead)}
           >
             <View style={styles.lastReadIcon}>
-              <Ionicons name="bookmark" size={20} color="#4F6AF5" />
+              <Ionicons name="bookmark" size={20} color="#1A5D1A" />
             </View>
             <View style={styles.lastReadContent}>
               <Text style={styles.lastReadName}>{lastRead.name}</Text>
@@ -245,12 +321,7 @@ export default function AasanTarjumaScreen() {
           style={[styles.tab, activeTab === "surah" && styles.activeTab]}
           onPress={() => setActiveTab("surah")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "surah" && styles.activeTabText,
-            ]}
-          >
+          <Text style={[styles.tabText, activeTab === "surah" && styles.activeTabText]}>
             Surah
           </Text>
         </TouchableOpacity>
@@ -258,12 +329,7 @@ export default function AasanTarjumaScreen() {
           style={[styles.tab, activeTab === "para" && styles.activeTab]}
           onPress={() => setActiveTab("para")}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "para" && styles.activeTabText,
-            ]}
-          >
+          <Text style={[styles.tabText, activeTab === "para" && styles.activeTabText]}>
             Para
           </Text>
         </TouchableOpacity>
@@ -284,11 +350,7 @@ export default function AasanTarjumaScreen() {
               <Text style={styles.numberText}>{index + 1}</Text>
             </View>
             <View style={styles.itemContent}>
-              <Text
-                style={styles.itemName}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
+              <Text style={styles.itemName} numberOfLines={1} ellipsizeMode="tail">
                 {item.name}
               </Text>
               <View style={styles.pageContainer}>
@@ -305,14 +367,11 @@ export default function AasanTarjumaScreen() {
       <Modal
         visible={pdfVisible}
         animationType="slide"
-        onRequestClose={() => setPdfVisible(false)}
+        onRequestClose={handlePdfClose}
       >
         <View style={styles.pdfContainer}>
           <View style={styles.pdfHeader}>
-            <TouchableOpacity
-              onPress={() => setPdfVisible(false)}
-              style={styles.closeButton}
-            >
+            <TouchableOpacity onPress={handlePdfClose} style={styles.closeButton}>
               <Ionicons name="arrow-back" size={24} color="white" />
               <Text style={styles.closeText}>Back</Text>
             </TouchableOpacity>
@@ -323,23 +382,37 @@ export default function AasanTarjumaScreen() {
               <Ionicons name="share-outline" size={20} color="white" />
             </TouchableOpacity>
           </View>
-
+          
           {pdfSource && (
-            <Pdf
-              source={pdfSource}
-              page={currentPage}
-              style={styles.pdf}
-              onError={(error) => {
-                console.log(error);
-                alert("Error loading PDF");
-                setPdfVisible(false);
-              }}
-              onPageChanged={(page, numberOfPages) => {
-                setCurrentPage(page);
-              }}
-              enablePaging={true}
-              enableRTL={true}
-            />
+            <View style={styles.pdfWrapper}>
+              <TouchableOpacity 
+                style={styles.swipeLeftArea}
+                onPress={() => handleSwipe('right')}
+                activeOpacity={0.6}
+              />
+              <Pdf
+                ref={pdfRef}
+                source={pdfSource}
+                page={currentPage}
+                style={styles.pdf}
+                horizontal={true} // Enable horizontal scrolling
+                enablePaging={true}
+                enableRTL={true}
+                onError={(error) => {
+                  console.log(error);
+                  alert("Error loading PDF");
+                  setPdfVisible(false);
+                }}
+                onPageChanged={(page) => {
+                  handlePageChange(page);
+                }}
+              />
+              <TouchableOpacity 
+                style={styles.swipeRightArea}
+                onPress={() => handleSwipe('left')}
+                activeOpacity={0.6}
+              />
+            </View>
           )}
         </View>
       </Modal>
@@ -352,6 +425,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F8FAFC",
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -359,7 +438,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 50 : 20,
     paddingBottom: 20,
     paddingHorizontal: 16,
-    backgroundColor: "#1A5D1A", // Deep green header
+    backgroundColor: "#1A5D1A",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -382,7 +461,12 @@ const styles = StyleSheet.create({
   lastReadContainer: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 12,
   },
   lastReadCard: {
     backgroundColor: "white",
@@ -395,9 +479,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    marginBottom: 16,
   },
   lastReadIcon: {
-    backgroundColor: "#E8F5E9", // Light green background
+    backgroundColor: "#E8F5E9",
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -421,20 +506,25 @@ const styles = StyleSheet.create({
   tabContainer: {
     flexDirection: "row",
     marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 16,
     backgroundColor: "#F8FAFC",
     borderRadius: 10,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
     backgroundColor: "#F8FAFC",
+    marginTop:12,
   },
   activeTab: {
-    backgroundColor: "#1A5D1A", // Deep green active tab
+    backgroundColor: "#1A5D1A",
   },
   tabText: {
     fontSize: 14,
@@ -469,7 +559,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#E8F5E9", // Light green background
+    backgroundColor: "#E8F5E9",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -477,7 +567,7 @@ const styles = StyleSheet.create({
   numberText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1A5D1A", // Deep green text
+    color: "#1A5D1A",
   },
   itemContent: {
     flex: 1,
@@ -504,7 +594,7 @@ const styles = StyleSheet.create({
   pageNumber: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1A5D1A", // Deep green text
+    color: "#1A5D1A",
   },
   pdfContainer: {
     flex: 1,
@@ -516,7 +606,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     paddingTop: Platform.OS === "ios" ? 50 : 16,
-    backgroundColor: "#1A5D1A", // Deep green header
+    backgroundColor: "#1A5D1A",
   },
   closeButton: {
     flexDirection: "row",
@@ -541,8 +631,27 @@ const styles = StyleSheet.create({
   shareButton: {
     padding: 8,
   },
+  pdfWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+  },
   pdf: {
     flex: 1,
-    width: "100%",
+  },
+  swipeLeftArea: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: '20%',
+    zIndex: 1,
+  },
+  swipeRightArea: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '20%',
+    zIndex: 1,
   },
 });
