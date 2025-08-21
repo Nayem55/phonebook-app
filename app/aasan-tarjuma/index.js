@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -9,34 +10,30 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useState, useEffect, useRef, useCallback, memo } from "react";
-import * as FileSystem from "expo-file-system";
-import Pdf from 'react-native-pdf';
 import * as Sharing from "expo-sharing";
 import { Asset } from "expo-asset";
 import { Link } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import PdfViewer from "../../components/PdfViewer";
+import { debounce } from "lodash";
 
-// Memoized list item component to prevent unnecessary re-renders
-const ListItem = memo(({ item, index, onPress }) => {
-  return (
-    <TouchableOpacity style={styles.itemCard} onPress={() => onPress(item)}>
-      <View style={styles.itemNumber}>
-        <Text style={styles.numberText}>{index + 1}</Text>
+const ListItem = memo(({ item, index, onPress }) => (
+  <TouchableOpacity style={styles.itemCard} onPress={() => onPress(item)}>
+    <View style={styles.itemNumber}>
+      <Text style={styles.numberText}>{index + 1}</Text>
+    </View>
+    <View style={styles.itemContent}>
+      <Text style={styles.itemName} numberOfLines={1} ellipsizeMode="tail">
+        {item.name}
+      </Text>
+      <View style={styles.pageContainer}>
+        <Text style={styles.pageText}>Page</Text>
+        <Text style={styles.pageNumber}>{item.page}</Text>
       </View>
-      <View style={styles.itemContent}>
-        <Text style={styles.itemName} numberOfLines={1} ellipsizeMode="tail">
-          {item.name}
-        </Text>
-        <View style={styles.pageContainer}>
-          <Text style={styles.pageText}>Page</Text>
-          <Text style={styles.pageNumber}>{item.page}</Text>
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#A0A3BD" />
-    </TouchableOpacity>
-  );
-});
+    </View>
+    <Ionicons name="chevron-forward" size={20} color="#A0A3BD" />
+  </TouchableOpacity>
+));
 
 export default function AasanTarjumaScreen() {
   const [activeTab, setActiveTab] = useState("para");
@@ -200,105 +197,80 @@ export default function AasanTarjumaScreen() {
     { name: "An-Nas (114) الناس", page: 1964 },
   ];
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
+  useEffect(() => () => (isMounted.current = false), []);
 
-  // Load last read from storage on component mount
   useEffect(() => {
-    const loadLastRead = async () => {
+    (async () => {
       try {
-        const savedLastRead = await AsyncStorage.getItem("lastReadQuran");
-        if (savedLastRead) {
-          const parsed = JSON.parse(savedLastRead);
-          if (isMounted.current) {
+        const saved = await AsyncStorage.getItem("lastReadQuran");
+        if (saved && isMounted.current) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.name && parsed.page) {
             setLastRead(parsed);
             setCurrentPage(parsed.page || 1);
           }
         }
-      } catch (error) {
-        console.error("Error loading last read:", error);
+      } catch (err) {
+        console.error("Failed to load last read data:", err);
       } finally {
-        if (isMounted.current) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
-    };
-    loadLastRead();
+    })();
   }, []);
-
-  // Save last read to storage whenever it changes
-  useEffect(() => {
-    if (!lastRead) return;
-
-    const saveLastRead = async () => {
-      try {
-        await AsyncStorage.setItem("lastReadQuran", JSON.stringify(lastRead));
-      } catch (error) {
-        console.error("Error saving last read:", error);
-      }
-    };
-
-    saveLastRead();
-  }, [lastRead]);
 
   const openPdfAtPage = useCallback(async (item) => {
     try {
       setLoading(true);
-
-      // Update last read immediately
-      const newLastRead = {
-        name: item.name,
-        page: item.page,
-      };
+      const newLastRead = { name: item.name, page: item.page };
       setLastRead(newLastRead);
       setCurrentPage(item.page);
 
-      // Load PDF asset
-      const asset = Asset.fromModule(
-        require("../../assets/Aasan Tarjuma Quran.pdf")
+      const loaded = Asset.fromModule(
+        require("../../assets/aasan-tarjuma-quran.pdf")
       );
-      if (!asset.localUri) {
-        await asset.downloadAsync();
-      }
+      await loaded.downloadAsync();
+      const asset = { uri: loaded.localUri };
 
       if (isMounted.current) {
-        setPdfSource({ uri: asset.localUri });
+        setPdfSource(asset);
         setPdfVisible(true);
       }
-    } catch (error) {
-      console.error("Error opening PDF:", error);
-      alert("Error opening PDF. Please try again.");
+    } catch (err) {
+      console.error("Failed to open PDF:", err);
+      alert("Error opening PDF");
     } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   }, []);
 
-  const handlePageChange = useCallback(
-    (page) => {
+  const debouncedHandlePageChange = useCallback(
+    debounce((page) => {
       if (!isMounted.current) return;
-
       setCurrentPage(page);
-
-      // Update last read whenever page changes
       if (lastRead) {
-        setLastRead((prev) => ({
-          ...prev,
-          page: page,
-        }));
+        const updated = { ...lastRead, page };
+        setLastRead(updated);
+        AsyncStorage.setItem("lastReadQuran", JSON.stringify(updated)).catch(
+          (err) => console.error("Failed to save last read:", err)
+        );
       }
-    },
+    }, 100),
     [lastRead]
   );
 
+  const handlePageChange = useCallback(
+    (page) => {
+      if (page > 0) {
+        debouncedHandlePageChange(page);
+      }
+    },
+    [debouncedHandlePageChange]
+  );
+
   const handlePdfClose = useCallback(() => {
+    debouncedHandlePageChange.flush(); // Ensure any pending page updates are saved
     setPdfVisible(false);
-  }, []);
+  }, [debouncedHandlePageChange]);
 
   const sharePdf = useCallback(async () => {
     try {
@@ -307,26 +279,14 @@ export default function AasanTarjumaScreen() {
         if (isAvailable) {
           await Sharing.shareAsync(pdfSource.uri);
         } else {
-          alert("Sharing is not available on this device");
+          alert("Sharing not available on this device");
         }
       }
-    } catch (error) {
-      console.error("Error sharing PDF:", error);
+    } catch (err) {
+      console.error("Share error:", err);
+      alert("Error sharing PDF");
     }
   }, [pdfSource]);
-
-  const handleSwipe = useCallback(
-    (direction) => {
-      if (pdfRef.current) {
-        const newPage =
-          direction === "left" ? currentPage + 1 : currentPage - 1;
-        if (newPage >= 1 && newPage <= 1964) {
-          pdfRef.current.setPage(newPage);
-        }
-      }
-    },
-    [currentPage]
-  );
 
   const renderListItems = useCallback(() => {
     const data = activeTab === "para" ? paraData : surahData;
@@ -350,7 +310,6 @@ export default function AasanTarjumaScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Link href="/quran" style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="white" />
@@ -359,7 +318,6 @@ export default function AasanTarjumaScreen() {
         <View style={styles.headerRightPlaceholder} />
       </View>
 
-      {/* Last Read Section */}
       {lastRead && (
         <View style={styles.lastReadContainer}>
           <Text style={styles.sectionTitle}>Continue Reading</Text>
@@ -379,7 +337,6 @@ export default function AasanTarjumaScreen() {
         </View>
       )}
 
-      {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tab, activeTab === "surah" && styles.activeTab]}
@@ -409,7 +366,6 @@ export default function AasanTarjumaScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
       <ScrollView
         style={styles.contentContainer}
         contentContainerStyle={styles.contentContainerStyle}
@@ -417,7 +373,6 @@ export default function AasanTarjumaScreen() {
         {renderListItems()}
       </ScrollView>
 
-      {/* PDF Viewer Modal */}
       <Modal
         visible={pdfVisible}
         animationType="slide"
@@ -439,38 +394,22 @@ export default function AasanTarjumaScreen() {
               <Ionicons name="share-outline" size={20} color="white" />
             </TouchableOpacity>
           </View>
-
-          {pdfSource && (
-            <View style={styles.pdfWrapper}>
-              <TouchableOpacity
-                style={styles.swipeLeftArea}
-                onPress={() => handleSwipe("right")}
-                activeOpacity={0.6}
-              />
-              <Pdf
-                ref={pdfRef}
-                source={pdfSource}
-                page={currentPage}
-                style={styles.pdf}
-                horizontal={true}
-                enablePaging={true}
-                enableRTL={true}
-                onError={(error) => {
-                  console.log(error);
-                  alert("Error loading PDF");
-                  setPdfVisible(false);
-                }}
-                onPageChanged={(page) => {
-                  handlePageChange(page);
-                }}
-              />
-              <TouchableOpacity
-                style={styles.swipeRightArea}
-                onPress={() => handleSwipe("left")}
-                activeOpacity={0.6}
-              />
-            </View>
-          )}
+          <View style={styles.pdfWrapper}>
+            <PdfViewer
+              source={pdfSource}
+              page={currentPage}
+              pdfRef={pdfRef}
+              onPageChanged={handlePageChange}
+              onError={(e) => {
+                console.error("PDF error:", e);
+                alert("Error loading PDF");
+                setPdfVisible(false);
+              }}
+              singlePage={true}
+              horizontal={true}
+              enableSwipe={true}
+            />
+          </View>
         </View>
       </Modal>
     </View>
@@ -478,16 +417,8 @@ export default function AasanTarjumaScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-  },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -496,15 +427,8 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingHorizontal: 16,
     backgroundColor: "#1A5D1A",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
   },
-  backButton: {
-    padding: 4,
-  },
+  backButton: { padding: 4 },
   headerTitle: {
     fontSize: 20,
     fontWeight: "600",
@@ -512,13 +436,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     flex: 1,
   },
-  headerRightPlaceholder: {
-    width: 32,
-  },
-  lastReadContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
+  headerRightPlaceholder: { width: 32 },
+  lastReadContainer: { paddingHorizontal: 16, paddingTop: 16 },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
@@ -547,70 +466,42 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 12,
   },
-  lastReadContent: {
-    flex: 1,
-  },
-  lastReadName: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#2E3A59",
-  },
-  lastReadPage: {
-    fontSize: 14,
-    color: "#8F9BB3",
-    marginTop: 4,
-  },
+  lastReadContent: { flex: 1 },
+  lastReadName: { fontSize: 16, fontWeight: "500", color: "#2E3A59" },
+  lastReadPage: { fontSize: 14, color: "#8F9BB3", marginTop: 4 },
   tabContainer: {
     flexDirection: "row",
     marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: "#F8FAFC",
+    marginBottom: 8,
+    backgroundColor: "#E0E0E0",
     borderRadius: 10,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
   },
   tab: {
     flex: 1,
     paddingVertical: 12,
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    marginTop: 12,
+    backgroundColor: "#E0E0E0",
   },
-  activeTab: {
-    backgroundColor: "#1A5D1A",
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#8F9BB3",
-  },
-  activeTabText: {
-    color: "white",
-    fontWeight: "600",
-  },
-  contentContainer: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  contentContainerStyle: {
-    paddingBottom: 20,
-  },
+  activeTab: { backgroundColor: "#1A5D1A" },
+  tabText: { fontSize: 14, fontWeight: "500", color: "#555" },
+  activeTabText: { color: "#fff", fontWeight: "600" },
+  contentContainer: { flex: 1, paddingHorizontal: 16 },
+  contentContainerStyle: { paddingBottom: 20 },
   itemCard: {
-    backgroundColor: "white",
+    backgroundColor: "#fff",
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 10,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    direction: "rtl",
   },
   itemNumber: {
     width: 32,
@@ -619,44 +510,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8F5E9",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginHorizontal: 8,
   },
-  numberText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1A5D1A",
-  },
+  numberText: { fontSize: 14, fontWeight: "600", color: "#1A5D1A" },
   itemContent: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginRight: 12,
   },
   itemName: {
     fontSize: 16,
-    fontWeight: "500",
     color: "#2E3A59",
-    maxWidth: "60%",
+    flexShrink: 1,
+    textAlign: "right",
   },
-  pageContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  pageText: {
-    fontSize: 14,
-    color: "#8F9BB3",
-    marginRight: 4,
-  },
-  pageNumber: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1A5D1A",
-  },
-  pdfContainer: {
-    flex: 1,
-    backgroundColor: "#333",
-  },
+  pageContainer: { flexDirection: "row", alignItems: "center" },
+  pageText: { fontSize: 14, color: "#8F9BB3", marginRight: 4 },
+  pageNumber: { fontSize: 14, fontWeight: "600", color: "#1A5D1A" },
+  pdfContainer: { flex: 1, backgroundColor: "#333" },
   pdfHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -665,50 +537,15 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 50 : 16,
     backgroundColor: "#1A5D1A",
   },
-  closeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  closeText: {
-    color: "white",
-    fontSize: 16,
-    marginLeft: 8,
-  },
+  closeButton: { flexDirection: "row", alignItems: "center" },
+  closeText: { color: "white", fontSize: 16, marginLeft: 8 },
   pageIndicator: {
     backgroundColor: "rgba(255,255,255,0.2)",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
   },
-  pageIndicatorText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  shareButton: {
-    padding: 8,
-  },
-  pdfWrapper: {
-    flex: 1,
-    flexDirection: "row",
-  },
-  pdf: {
-    flex: 1,
-  },
-  swipeLeftArea: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: "20%",
-    zIndex: 1,
-  },
-  swipeRightArea: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: "20%",
-    zIndex: 1,
-  },
+  pageIndicatorText: { color: "white", fontSize: 14, fontWeight: "500" },
+  shareButton: { padding: 8 },
+  pdfWrapper: { flex: 1 },
 });
