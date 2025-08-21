@@ -254,7 +254,7 @@ export default function AasanTarjumaScreen() {
           (err) => console.error("Failed to save last read:", err)
         );
       }
-    }, 100),
+    }, 500),
     [lastRead]
   );
 
